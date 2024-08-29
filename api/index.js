@@ -1,66 +1,34 @@
 import Fastify from 'fastify'
+import path from 'path'
+import AutoLoad from '@fastify/autoload'
+import { fileURLToPath } from 'url'
+import closeWithGrace from 'close-with-grace'
+
+const filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(filename)
 
 const app = Fastify({
   logger: true,
 })
+app.register(AutoLoad, {
+  dir: path.join(__dirname, 'routes'),
+})
+  // delay is the number of milliseconds for the graceful close to finish
+  closeWithGrace(
+    { delay: process.env.FASTIFY_CLOSE_GRACE_DELAY || 500 },
+    async function ({ signal, err, manual }) {
+      if (err) {
+        app.log.error(err)
+      }
+      await app.close()
+    }
+  )
 
-app.get('/', async (req, reply) => {
-  return reply.status(200).type('text/html').send(html)
+app.get('/hello', async (req, reply) => {
+  return reply.status(200).send({html: 'Hello World'})
 })
 
 export default async function handler(req, reply) {
   await app.ready()
   app.server.emit('request', req, reply)
 }
-
-const html = `
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@exampledev/new.css@1.1.2/new.min.css"
-    />
-    <title>Vercel + Fastify Hello World</title>
-    <meta
-      name="description"
-      content="This is a starter template for Vercel + Fastify."
-    />
-  </head>
-  <body>
-    <h1>Vercel + Fastify Hello World</h1>
-    <p>
-      This is a starter template for Vercel + Fastify. Requests are
-      rewritten from <code>/*</code> to <code>/api/*</code>, which runs
-      as a Vercel Function.
-    </p>
-    <p>
-        For example, here is the boilerplate code for this route:
-    </p>
-    <pre>
-<code>import Fastify from 'fastify'
-
-const app = Fastify({
-  logger: true,
-})
-
-app.get('/', async (req, res) => {
-  return res.status(200).type('text/html').send(html)
-})
-
-export default async function handler(req: any, res: any) {
-  await app.ready()
-  app.server.emit('request', req, res)
-}</code>
-    </pre>
-    <p>
-    <p>
-      <a href="https://vercel.com/templates/other/fastify-serverless-function">
-      Deploy your own
-      </a>
-      to get started.
-  </body>
-</html>
-`
